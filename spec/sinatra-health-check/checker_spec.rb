@@ -56,4 +56,29 @@ describe SinatraHealthCheck::Checker do
     end
   end
 
+  context '#status' do
+    it 'has a status' do
+      expect(subject.status.level).to eq(:ok)
+      expect(subject.healthy?).to be_truthy
+      expect(subject.status.to_h[:statusDetails]).to be_nil
+    end
+
+    it 'has substatus' do
+      substatus = SinatraHealthCheck::Status.new(:ok, 'sub is ok')
+      system = double("System", :status => substatus)
+      subject.systems[:sub] = system
+      expect(subject.status.level).to eq(:ok)
+      expect(subject.healthy?).to be_truthy
+      expect(subject.status.to_h[:statusDetails][:sub]).to eq(substatus.to_h)
+    end
+
+    it 'is unhealthy with unhealthy subsystem' do
+      substatus = SinatraHealthCheck::Status.new(:error, 'unhealthy')
+      system = double("System", :status => substatus)
+      subject.systems[:sub] = system
+      expect(subject.status.level).to eq(:error)
+      expect(subject.healthy?).to be_falsey
+    end
+  end
+
 end

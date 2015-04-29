@@ -3,29 +3,36 @@
 class SinatraHealthCheck::Checker
 
   DEFAULT_OPTS = {
-    :exit    => true,
-    :health  => true,
-    :logger  => nil,
-    :signals => %w[TERM INT],
-    :timeout => 10,
-    :wait    => 0,
+    :aggregator => SinatraHealthCheck::Status::StrictAggregator.new,
+    :exit       => true,
+    :health     => true,
+    :logger     => nil,
+    :signals    => %w[TERM INT],
+    :systems    => {},
+    :timeout    => 10,
+    :wait       => 0,
   }
 
   require 'thread'
 
   attr_accessor :health
-  alias :healthy? :health
+  attr_reader :systems
 
   # Create a health checker.
   # Params:
+  # ++aggrgator++: an aggregator for substatuus, default: StrictAggregator
   # ++exit++: call ++exit++ at the end of ++graceful_stop++
   # ++health++: initial health state
   # ++logger++: a logger
   # ++signals++: array of signals to register a graceful stop handler
+  # ++systems++: a hash of subsystems responding to .status
   # ++timeout++: timeout for graceful stop in seconds
-  def initialize(opts = DEFAULT_OPTS)
+  # ++wait++: wait before setting health to unhealthy
+  def initialize(opts = {})
     @opts = DEFAULT_OPTS.merge(opts)
+    @aggregator = SinatraHealthCheck::Status::OverwritingAggregator.new(@opts[:aggregator])
     @health = @opts[:health]
+    @systems = @opts[:systems]
     trap(@opts[:signals])
   end
 
@@ -51,6 +58,17 @@ class SinatraHealthCheck::Checker
   # Waits for the stopping thread to finish
   def join
     @stopper.join if @stopper
+  end
+
+  # Returns a Status object
+  def status
+    statuus = {}
+    systems.each { |k,v| statuus[k] = v.status if v.respond_to?(:status) }
+    @aggregator.aggregate(statuus, health ? nil : SinatraHealthCheck::Status.new(:error, 'app is unhealthy'))
+  end
+
+  def healthy?
+    status.level != :error
   end
 
   private
