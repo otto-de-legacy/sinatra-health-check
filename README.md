@@ -21,7 +21,7 @@ Optionally add subsystems to the Checker:
 
 ```ruby
 # mysubsystem responds to :status with a SinatraHealthCheck::Status object
-@checker.systems << mysubsystem
+@checker.systems[:mysubsystem] = mysubsystem
 ```
 
 Then use it inside your health check route:
