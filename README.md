@@ -17,16 +17,32 @@ require 'sinatra-health-check'
 @checker = SinatraHealthCheck::Checker.new
 ```
 
+Optionally add subsystems to the Checker:
+
+```ruby
+# mysubsystem responds to :status with a SinatraHealthCheck::Status object
+@checker.systems << mysubsystem
+```
+
 Then use it inside your health check route:
 
 ```ruby
-get "/ping" do
+get "/internal/health" do
   if @checker.healthy?
-    "pong"
+    "healthy"
   else
     status 503
     "unhealthy"
   end
+end
+```
+
+Deliver a status document showing overall health/status and status of all subsystems:
+
+```ruby
+get "/internal/status" do
+  headers 'content-type' => 'application/json'
+  @checker.status.to_json
 end
 ```
 
